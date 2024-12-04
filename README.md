@@ -19,7 +19,6 @@ It's recommended to create a virtual environment to manage dependencies:
 
 # For macOS/Linux
 ```
-# For macOS/Linux
 python3 -m venv venv
 ```
 
@@ -27,7 +26,6 @@ python3 -m venv venv
 Activate the virtual environment using the following command:
 
 ```bash
-# For macOS/Linux
 source venv/bin/activate
 ```
 
