@@ -1,7 +1,7 @@
-fastapi
-uvicorn
-beautifulsoup4
-requests
-python-dotenv
-pydantic
-redis
+beautifulsoup4==4.12.3
+requests==2.32.3
+python-dotenv==1.0.1
+pydantic==2.10.3
+redis==5.2.0
+fastapi==0.115.6
+uvicorn==0.32.1
