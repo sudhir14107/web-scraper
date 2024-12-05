@@ -12,33 +12,44 @@ class ScraperService:
         self.base_url = "https://dentalstall.com/shop/"
         self.scraped_data = []
         self.notification_service = Notification(recipients or [])
-        self.redis_cache = redis_cache  # Inject Redis cache here
+        self.redis_cache = redis_cache
+        self.total_updated_count = 0
+        self.total_new_count = 0
 
-    def save_data(self):
+    def save_data(self) -> None:
+        """Save scraped data to a JSON file."""
         formatted_data = self.scraped_data
-        with open('scrape_dump.json', 'w', encoding='utf-8') as json_file:
-            json.dump(formatted_data, json_file, indent=4, ensure_ascii=False)
+        try:
+            with open('scrape_dump.json', 'w', encoding='utf-8') as json_file:
+                json.dump(formatted_data, json_file, indent=4, ensure_ascii=False)
+        except IOError as e:
+            print(f"Error saving data: {e}")
 
-    def fetch_page(self, page_number: int):
+    def fetch_page(self, page_number: int) -> str:
+        """Fetch a page from the website."""
         url = f"{self.base_url}page/{page_number}/"
-        if self.proxy:
-            response = requests.get(url, proxies={"http": self.proxy, "https": self.proxy})
-        else:
-            response = requests.get(url)
-        
-        if response.status_code == 200:
+        try:
+            response = requests.get(url, proxies={"http": self.proxy, "https": self.proxy} if self.proxy else None)
+            response.raise_for_status()  # Raise an error for bad responses
             return response.text
-        return None
-    
-    def data_update(self, title, price):
+        except requests.RequestException as e:
+            print(f"Error fetching page {page_number}: {e}")
+            return None
+
+    def data_update(self, title: str, price: float) -> None:
+        """Update the cached price and counts."""
         cached_price = self.redis_cache.get(title)
-        if not cached_price or (float(cached_price.decode('utf-8')) != price):
+        if not cached_price:
+            self.total_new_count += 1
+            self.redis_cache.set(title, price)
+        elif float(cached_price.decode('utf-8')) != price:
+            self.total_updated_count += 1
             self.redis_cache.set(title, price)
 
-
-    def parse_product_data(self, page_content: str):
+    def parse_product_data(self, page_content: str) -> None:
+        """Parse product data from the page content."""
         soup = BeautifulSoup(page_content, 'html.parser')
-        product_elements = soup.find_all('div', class_='product-inner clearfix')  # Find all product containers
+        product_elements = soup.find_all('div', class_='product-inner clearfix')
 
         for product in product_elements:
             title = product.find('h2', class_='woo-loop-product__title').text.strip()
@@ -47,8 +58,6 @@ class ScraperService:
             image_path = product.find('div', class_='mf-product-thumbnail').find('img')['data-lazy-src']
 
             self.data_update(title, price)
-            
-            # Append product data to the list with type check
             self.scraped_data.append({ 
                 "product_title": str(title),
                 "product_price": float(price),
@@ -71,6 +80,21 @@ class ScraperService:
                 print(f"Failed to fetch page {page_number} after {retries} attempts.")
         
         self.save_data()
-        self.notification_service.send_notification(success=True, message="Scraping completed successfully.", data_length=len(self.scraped_data))
-        return {"status": "success", "message": "Scraping completed successfully.", "data_length": len(self.scraped_data)}
+        self.notification_service.send_notification(
+            success=True, 
+            message="Scraping completed successfully.", 
+            data={
+                "data_length": len(self.scraped_data), 
+                "total_updated": self.total_updated_count, 
+                "total_new": self.total_new_count
+            })
+        return {
+            "status": "success", 
+            "message": "Scraping completed successfully.", 
+            "data": {
+                "data_length": len(self.scraped_data), 
+                "total_updated": self.total_updated_count, 
+                "total_new": self.total_new_count
+            }
+        }
 
