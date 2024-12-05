@@ -2,3 +2,4 @@
 venv
 .env
 scrape_dump.json
+**__pycache__

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from app.services.scraper import ScraperService
 from app.db.redis import RedisCache
 from app.dependencies import get_redis_cache  # Import Redis dependency
-from ..middlewares.auth import verify_token
+from ..utils.auth import verify_token
 
 router = APIRouter()
 
